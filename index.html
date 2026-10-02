@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA AI</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#0b0d12;
+  color:#f4f7fb;
+  height:100vh;
+  overflow:hidden
+}
+.app{display:flex;height:100vh}
+.sidebar{
+  width:270px;
+  background:#11151d;
+  border-right:1px solid #252b35;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:14px
+}
+.logo{
+  font-size:25px;
+  font-weight:800;
+  background:linear-gradient(90deg,#58a6ff,#b36cff,#ff65c3);
+  -webkit-background-clip:text;
+  color:transparent;
+  padding:8px
+}
+.new{
+  border:0;
+  border-radius:12px;
+  padding:13px;
+  background:#202734;
+  color:white;
+  cursor:pointer
+}
+.history{
+  flex:1;
+  overflow:auto
+}
+.history div{
+  padding:10px;
+  border-radius:9px;
+  color:#c6ccd5;
+  cursor:pointer;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+.history div:hover{background:#1d2430}
+.main{flex:1;display:flex;flex-direction:column}
+.top{
+  height:62px;
+  border-bottom:1px solid #252b35;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 18px
+}
+.model{font-weight:bold}
+.theme{
+  border:0;
+  background:#202734;
+  color:white;
+  padding:9px 12px;
+  border-radius:9px;
+  cursor:pointer
+}
+.chat{
+  flex:1;
+  overflow:auto;
+  padding:25px 14px 150px
+}
+.welcome{
+  max-width:760px;
+  margin:12vh auto;
+  text-align:center
+}
+.welcome h1{
+  font-size:48px;
+  margin:0 0 12px;
+  background:linear-gradient(90deg,#58a6ff,#b36cff,#ff65c3);
+  -webkit-background-clip:text;
+  color:transparent
+}
+.welcome p{color:#aeb7c4}
+.msg{
+  max-width:850px;
+  margin:18px auto;
+  display:flex;
+  gap:12px
+}
+.avatar{
+  min-width:36px;
+  height:36px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:#222a38
+}
+.content{
+  line-height:1.65;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere
+}
+.user .content{
+  background:#1c2635;
+  padding:11px 14px;
+  border-radius:15px;
+  margin-left:auto
+}
+.actions{
+  margin-top:8px;
+  display:flex;
+  gap:7px
+}
+.actions button{
+  border:0;
+  background:#171d27;
+  color:#aeb7c4;
+  border-radius:7px;
+  padding:5px 8px;
+  cursor:pointer
+}
+.composer{
+  position:fixed;
+  bottom:0;
+  left:270px;
+  right:0;
+  padding:15px;
+  background:linear-gradient(transparent,#0b0d12 25%)
+}
+.form{
+  max-width:850px;
+  margin:auto;
+  display:flex;
+  gap:9px;
+  background:#171c25;
+  border:1px solid #303846;
+  border-radius:17px;
+  padding:9px
+}
+textarea{
+  flex:1;
+  resize:none;
+  min-height:45px;
+  max-height:150px;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:white;
+  padding:12px;
+  font:inherit
+}
+.send{
+  width:48px;
+  border:0;
+  border-radius:12px;
+  background:#5b7cff;
+  color:white;
+  font-size:20px;
+  cursor:pointer
+}
+.status{
+  text-align:center;
+  color:#707987;
+  font-size:11px;
+  margin-top:6px
+}
+@media(max-width:700px){
+  .sidebar{display:none}
+  .composer{left:0}
+  .welcome h1{font-size:37px}
+  .chat{padding-top:15px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<aside class="sidebar">
+  <div class="logo">✦ NOVA AI</div>
+
+  <button class="new" onclick="newChat()">＋ New chat</button>
+
+  <div class="history" id="history"></div>
+
+  <div style="font-size:11px;color:#737d8b">
+    AI assistant • Powered by API
+  </div>
+</aside>
+
+<main class="main">
+
+<header class="top">
+  <div class="model">NOVA AI</div>
+  <button class="theme" onclick="toggleTheme()">☀ / 🌙</button>
+</header>
+
+<section class="chat" id="chat">
+
+  <div class="welcome" id="welcome">
+    <h1>Hello, I'm NOVA</h1>
+    <p>
+      Ask me to write, explain, brainstorm, code,
+      summarize or help you study.
+    </p>
+  </div>
+
+</section>
+
+<div class="composer">
+
+<form class="form" onsubmit="sendMessage(event)">
+<textarea
+ id="input"
+ placeholder="Message NOVA AI..."
+ rows="1"
+></textarea>
+
+<button class="send" type="submit">↑</button>
+</form>
+
+<div class="status" id="status">
+NOVA can make mistakes. Check important information.
+</div>
+
+</div>
+
+</main>
+</div>
+
+<script>
+
+const chat=document.getElementById("chat");
+const input=document.getElementById("input");
+const historyBox=document.getElementById("history");
+const statusBox=document.getElementById("status");
+
+let messages=[];
+let busy=false;
+
+function newChat(){
+
+  messages=[];
+
+  chat.innerHTML=`
+  <div class="welcome" id="welcome">
+    <h1>Hello, I'm NOVA</h1>
+    <p>
+      Ask me to write, explain, brainstorm, code,
+      summarize or help you study.
+    </p>
+  </div>`;
+
+  input.focus();
+}
+
+function addMessage(role,text){
+
+  const welcome=document.getElementById("welcome");
+
+  if(welcome) welcome.remove();
+
+  const wrapper=document.createElement("div");
+
+  wrapper.className="msg "+role;
+
+  const avatar=document.createElement("div");
+
+  avatar.className="avatar";
+
+  avatar.textContent=
+    role==="user" ? "U" : "✦";
+
+  const body=document.createElement("div");
+
+  body.className="content";
+
+  body.textContent=text;
+
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(body);
+
+  chat.appendChild(wrapper);
+
+  chat.scrollTop=chat.scrollHeight;
+
+  return body;
+}
+
+function addActions(body,text){
+
+  const actions=document.createElement("div");
+
+  actions.className="actions";
+
+  const copy=document.createElement("button");
+
+  copy.textContent="Copy";
+
+  copy.onclick=async()=>{
+    await navigator.clipboard.writeText(text);
+    copy.textContent="Copied!";
+    setTimeout(
+      ()=>copy.textContent="Copy",
+      1000
+    );
+  };
+
+  const regenerate=document.createElement("button");
+
+  regenerate.textContent="Regenerate";
+
+  regenerate.onclick=()=>{
+    regenerateLast();
+  };
+
+  actions.appendChild(copy);
+  actions.appendChild(regenerate);
+
+  body.parentElement.appendChild(actions);
+}
+
+async function sendMessage(e){
+
+  e.preventDefault();
+
+  if(busy) return;
+
+  const text=input.value.trim();
+
+  if(!text) return;
+
+  input.value="";
+
+  messages.push({
+    role:"user",
+    content:text
+  });
+
+  addMessage("user",text);
+
+  busy=true;
+
+  statusBox.textContent="NOVA is thinking...";
+
+  const aiBody=addMessage(
+    "assistant",
+    "Thinking..."
+  );
+
+  try{
+
+    const response=await fetch(
+      "/api/chat",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          messages
+        })
+      }
+    );
+
+    const data=await response.json();
+
+    if(!response.ok)
+      throw new Error(
+        data.error || "Request failed"
+      );
+
+    aiBody.textContent=data.reply;
+
+    addActions(
+      aiBody,
+      data.reply
+    );
+
+    messages.push({
+      role:"assistant",
+      content:data.reply
+    });
+
+    saveHistory(text);
+
+  }catch(error){
+
+    aiBody.textContent=
+      "Sorry, something went wrong.\n\n"+
+      error.message;
+
+  }finally{
+
+    busy=false;
+
+    statusBox.textContent=
+      "NOVA can make mistakes. Check important information.";
+
+  }
+}
+
+function regenerateLast(){
+
+  if(busy || messages.length<2)
+    return;
+
+  messages.pop();
+
+  const lastUser=
+    messages[messages.length-1];
+
+  if(lastUser.role!=="user")
+    return;
+
+  sendRegeneration();
+}
+
+async function sendRegeneration(){
+
+  busy=true;
+
+  statusBox.textContent="Regenerating...";
+
+  const aiBody=addMessage(
+    "assistant",
+    "Thinking..."
+  );
+
+  try{
+
+    const response=await fetch(
+      "/api/chat",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          messages
+        })
+      }
+    );
+
+    const data=await response.json();
+
+    if(!response.ok)
+      throw new Error(
+        data.error || "Request failed"
+      );
+
+    aiBody.textContent=data.reply;
+
+    addActions(
+      aiBody,
+      data.reply
+    );
+
+    messages.push({
+      role:"assistant",
+      content:data.reply
+    });
+
+  }catch(error){
+
+    aiBody.textContent=
+      "Error: "+error.message;
+
+  }finally{
+
+    busy=false;
+
+    statusBox.textContent=
+      "NOVA can make mistakes. Check important information.";
+  }
+}
+
+function saveHistory(title){
+
+  const old=
+    JSON.parse(
+      localStorage.getItem(
+        "novaHistory"
+      ) || "[]"
+    );
+
+  old.unshift(title);
+
+  localStorage.setItem(
+    "novaHistory",
+    JSON.stringify(
+      old.slice(0,20)
+    )
+  );
+
+  renderHistory();
+}
+
+function renderHistory(){
+
+  historyBox.innerHTML="";
+
+  const old=
+    JSON.parse(
+      localStorage.getItem(
+        "novaHistory"
+      ) || "[]"
+    );
+
+  old.forEach(title=>{
+
+    const item=document.createElement("div");
+
+    item.textContent=title;
+
+    historyBox.appendChild(item);
+
+  });
+}
+
+function toggleTheme(){
+
+  const light=
+    document.body.dataset.theme==="light";
+
+  if(light){
+
+    delete document.body.dataset.theme;
+
+    document.body.style.background="#0b0d12";
+    document.body.style.color="#f4f7fb";
+
+  }else{
+
+    document.body.dataset.theme="light";
+
+    document.body.style.background="#f4f6f8";
+    document.body.style.color="#111";
+
+  }
+}
+
+input.addEventListener(
+"keydown",
+e=>{
+
+  if(
+    e.key==="Enter" &&
+    !e.shiftKey
+  ){
+
+    e.preventDefault();
+
+    document.querySelector(
+      ".form"
+    ).requestSubmit();
+
+  }
+
+});
+
+renderHistory();
+
+</script>
+
+</body>
+  </html>
